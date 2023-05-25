@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"regexp"
 	"sort"
 	"strconv"
@@ -22,17 +23,11 @@ func (a ByLength) Less(i, j int) bool { return a[i].Length > a[j].Length }
 func (a ByLength) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
 func main() {
-	// Create a new document
-	doc := etree.NewDocument()
-
-	// Load the XML file
-	if err := doc.ReadFromFile("example.xmlBIG"); err != nil {
-		fmt.Printf("Failed to read XML file: %v", err)
+	// Check if XML file paths are provided as arguments
+	if len(os.Args) < 2 {
+		fmt.Println("Please provide one or more TMLU file paths as arguments.")
 		return
 	}
-
-	// Find all the //SRVD/EX elements
-	explorers := doc.FindElements("//SRVD/EX")
 
 	// Maps to store the total length of exploration for each explorer and surveyor
 	explorerLengths := make(map[string]float64)
@@ -42,64 +37,79 @@ func main() {
 	explorerPattern := "<Explorer>(.*?)</Explorer>"
 	surveyorPattern := "<Surveyor>(.*?)</Surveyor>"
 
-	for _, explorer := range explorers {
-		// Get the text content of the <EX> element
-		exContent := explorer.Text()
+	// Iterate through the XML file paths provided as arguments
+	for _, filePath := range os.Args[1:] {
+		// Create a new document
+		doc := etree.NewDocument()
 
-		// Extract explorer names using regular expression
-		explorerMatches := regexp.MustCompile(explorerPattern).FindStringSubmatch(exContent)
-		if len(explorerMatches) >= 2 {
-			explorerNames := strings.Split(explorerMatches[1], ",")
-
-			// Trim leading and trailing whitespace from names
-			for i := range explorerNames {
-				explorerNames[i] = strings.TrimSpace(explorerNames[i])
-			}
-
-			// Find the associated length of exploration (//SRVD/LG)
-			lengthElement := explorer.FindElement("../LG")
-			if lengthElement != nil {
-				lgText := lengthElement.Text()
-
-				// Convert the length to a float
-				lgValue, err := strconv.ParseFloat(lgText, 64)
-				if err != nil {
-					fmt.Printf("Failed to convert //SRVD/LG value to float: %v\n", err)
-					continue
-				}
-
-				// Add the length to each explorer's total length
-				for _, explorerName := range explorerNames {
-					explorerLengths[explorerName] += lgValue
-				}
-			}
+		// Load the XML file
+		if err := doc.ReadFromFile(filePath); err != nil {
+			fmt.Printf("Failed to read XML file %s: %v\n", filePath, err)
+			continue
 		}
 
-		// Extract surveyor names using regular expression
-		surveyorMatches := regexp.MustCompile(surveyorPattern).FindStringSubmatch(exContent)
-		if len(surveyorMatches) >= 2 {
-			surveyorNames := strings.Split(surveyorMatches[1], ",")
+		// Find all the //SRVD/EX elements
+		explorers := doc.FindElements("//SRVD/EX")
 
-			// Trim leading and trailing whitespace from names
-			for i := range surveyorNames {
-				surveyorNames[i] = strings.TrimSpace(surveyorNames[i])
-			}
+		for _, explorer := range explorers {
+			// Get the text content of the <EX> element
+			exContent := explorer.Text()
 
-			// Find the associated length of exploration (//SRVD/LG)
-			lengthElement := explorer.FindElement("../LG")
-			if lengthElement != nil {
-				lgText := lengthElement.Text()
+			// Extract explorer names using regular expression
+			explorerMatches := regexp.MustCompile(explorerPattern).FindStringSubmatch(exContent)
+			if len(explorerMatches) >= 2 {
+				explorerNames := strings.Split(explorerMatches[1], ",")
 
-				// Convert the length to a float
-				lgValue, err := strconv.ParseFloat(lgText, 64)
-				if err != nil {
-					fmt.Printf("Failed to convert //SRVD/LG value to float: %v\n", err)
-					continue
+				// Trim leading and trailing whitespace from names
+				for i := range explorerNames {
+					explorerNames[i] = strings.TrimSpace(explorerNames[i])
 				}
 
-				// Add the length to each surveyor's total length
-				for _, surveyorName := range surveyorNames {
-					surveyorLengths[surveyorName] += lgValue
+				// Find the associated length of exploration (//SRVD/LG)
+				lengthElement := explorer.FindElement("../LG")
+				if lengthElement != nil {
+					lgText := lengthElement.Text()
+
+					// Convert the length to a float
+					lgValue, err := strconv.ParseFloat(lgText, 64)
+					if err != nil {
+						fmt.Printf("Failed to convert //SRVD/LG value to float in file %s: %v\n", filePath, err)
+						continue
+					}
+
+					// Add the length to each explorer's total length
+					for _, explorerName := range explorerNames {
+						explorerLengths[explorerName] += lgValue
+					}
+				}
+			}
+
+			// Extract surveyor names using regular expression
+			surveyorMatches := regexp.MustCompile(surveyorPattern).FindStringSubmatch(exContent)
+			if len(surveyorMatches) >= 2 {
+				surveyorNames := strings.Split(surveyorMatches[1], ",")
+
+				// Trim leading and trailing whitespace from names
+				for i := range surveyorNames {
+					surveyorNames[i] = strings.TrimSpace(surveyorNames[i])
+				}
+
+				// Find the associated length of exploration (//SRVD/LG)
+				lengthElement := explorer.FindElement("../LG")
+				if lengthElement != nil {
+					lgText := lengthElement.Text()
+
+					// Convert the length to a float
+					lgValue, err := strconv.ParseFloat(lgText, 64)
+					if err != nil {
+						fmt.Printf("Failed to convert //SRVD/LG value to float in file %s: %v\n", filePath, err)
+						continue
+					}
+
+					// Add the length to each surveyor's total length
+					for _, surveyorName := range surveyorNames {
+						surveyorLengths[surveyorName] += lgValue
+					}
 				}
 			}
 		}
