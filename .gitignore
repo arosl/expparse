@@ -1,3 +1,4 @@
 *.xml
 example.xmlBIG
 main
+bin/*
