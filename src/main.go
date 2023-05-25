@@ -125,7 +125,7 @@ func main() {
 	// Print the explorers and their total lengths of exploration
 	fmt.Println("Explorers:")
 	for _, ex := range sortedExplorers {
-		fmt.Printf("Explorer: %s, Length: %f\n", ex.Name, ex.Length)
+		fmt.Printf("%-28s Length: %f\n", ex.Name, ex.Length)
 	}
 
 	fmt.Println()
@@ -140,6 +140,6 @@ func main() {
 	// Print the surveyors and their total lengths of exploration
 	fmt.Println("Surveyors:")
 	for _, surveyor := range sortedSurveyors {
-		fmt.Printf("Surveyor: %s, Length: %f\n", surveyor.Name, surveyor.Length)
+		fmt.Printf("%-28s Length: %f\n", surveyor.Name, surveyor.Length)
 	}
 }
