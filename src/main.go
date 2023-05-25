@@ -130,14 +130,14 @@ func main() {
 
 	fmt.Println()
 
-	// Sort surveyors by their total lengths of exploration in descending order
+	// Sort surveyors by their total lengths of survey in descending order
 	var sortedSurveyors []Explorer
 	for surveyor, length := range surveyorLengths {
 		sortedSurveyors = append(sortedSurveyors, Explorer{Name: surveyor, Length: length})
 	}
 	sort.Sort(ByLength(sortedSurveyors))
 
-	// Print the surveyors and their total lengths of exploration
+	// Print the surveyors and their total lengths of survey
 	fmt.Println("Surveyors:")
 	for _, surveyor := range sortedSurveyors {
 		fmt.Printf("%-28s Length: %f\n", surveyor.Name, surveyor.Length)
