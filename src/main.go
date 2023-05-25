@@ -23,7 +23,7 @@ func (a ByLength) Less(i, j int) bool { return a[i].Length > a[j].Length }
 func (a ByLength) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
 func main() {
-	// Check if XML file paths are provided as arguments
+	// Check if TMLU file paths are provided as arguments
 	if len(os.Args) < 2 {
 		fmt.Println("Please provide one or more TMLU file paths as arguments.")
 		return
@@ -33,9 +33,9 @@ func main() {
 	explorerLengths := make(map[string]float64)
 	surveyorLengths := make(map[string]float64)
 
-	// Regular expression patterns to match the explorer and surveyor names within EX element
-	explorerPattern := "<Explorer>(.*?)</Explorer>"
-	surveyorPattern := "<Surveyor>(.*?)</Surveyor>"
+	// Regular expressions to match the explorer and surveyor names within EX element
+	explorerRegex := regexp.MustCompile(`<Explorer>(.*?)</Explorer>`)
+	surveyorRegex := regexp.MustCompile(`<Surveyor>(.*?)</Surveyor>`)
 
 	// Iterate through the XML file paths provided as arguments
 	for _, filePath := range os.Args[1:] {
@@ -56,9 +56,9 @@ func main() {
 			exContent := explorer.Text()
 
 			// Extract explorer names using regular expression
-			explorerMatches := regexp.MustCompile(explorerPattern).FindStringSubmatch(exContent)
-			if len(explorerMatches) >= 2 {
-				explorerNames := strings.Split(explorerMatches[1], ",")
+			explorerMatches := explorerRegex.FindAllStringSubmatch(exContent, -1)
+			for _, match := range explorerMatches {
+				explorerNames := strings.Split(match[1], ",")
 
 				// Trim leading and trailing whitespace from names
 				for i := range explorerNames {
@@ -85,9 +85,9 @@ func main() {
 			}
 
 			// Extract surveyor names using regular expression
-			surveyorMatches := regexp.MustCompile(surveyorPattern).FindStringSubmatch(exContent)
-			if len(surveyorMatches) >= 2 {
-				surveyorNames := strings.Split(surveyorMatches[1], ",")
+			surveyorMatches := surveyorRegex.FindAllStringSubmatch(exContent, -1)
+			for _, match := range surveyorMatches {
+				surveyorNames := strings.Split(match[1], ",")
 
 				// Trim leading and trailing whitespace from names
 				for i := range surveyorNames {
