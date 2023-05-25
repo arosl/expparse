@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -33,10 +32,6 @@ func main() {
 	explorerLengths := make(map[string]float64)
 	surveyorLengths := make(map[string]float64)
 
-	// Regular expressions to match the explorer and surveyor names within EX element
-	explorerRegex := regexp.MustCompile(`<Explorer>(.*?)</Explorer>`)
-	surveyorRegex := regexp.MustCompile(`<Surveyor>(.*?)</Surveyor>`)
-
 	// Iterate through the XML file paths provided as arguments
 	for _, filePath := range os.Args[1:] {
 		// Create a new document
@@ -55,61 +50,30 @@ func main() {
 			// Get the text content of the <EX> element
 			exContent := explorer.Text()
 
-			// Extract explorer names using regular expression
-			explorerMatches := explorerRegex.FindAllStringSubmatch(exContent, -1)
-			for _, match := range explorerMatches {
-				explorerNames := strings.Split(match[1], ",")
+			// Extract explorer and surveyor names using HTML notation
+			explorerNames := extractNames(exContent, "<Explorer>", "</Explorer>")
+			surveyorNames := extractNames(exContent, "<Surveyor>", "</Surveyor>")
 
-				// Trim leading and trailing whitespace from names
-				for i := range explorerNames {
-					explorerNames[i] = strings.TrimSpace(explorerNames[i])
+			// Find the associated length of exploration (//SRVD/LG)
+			lengthElement := explorer.FindElement("../LG")
+			if lengthElement != nil {
+				lgText := lengthElement.Text()
+
+				// Convert the length to a float
+				lgValue, err := strconv.ParseFloat(lgText, 64)
+				if err != nil {
+					fmt.Printf("Failed to convert //SRVD/LG value to float in file %s: %v\n", filePath, err)
+					continue
 				}
 
-				// Find the associated length of exploration (//SRVD/LG)
-				lengthElement := explorer.FindElement("../LG")
-				if lengthElement != nil {
-					lgText := lengthElement.Text()
-
-					// Convert the length to a float
-					lgValue, err := strconv.ParseFloat(lgText, 64)
-					if err != nil {
-						fmt.Printf("Failed to convert //SRVD/LG value to float in file %s: %v\n", filePath, err)
-						continue
-					}
-
-					// Add the length to each explorer's total length
-					for _, explorerName := range explorerNames {
-						explorerLengths[explorerName] += lgValue
-					}
-				}
-			}
-
-			// Extract surveyor names using regular expression
-			surveyorMatches := surveyorRegex.FindAllStringSubmatch(exContent, -1)
-			for _, match := range surveyorMatches {
-				surveyorNames := strings.Split(match[1], ",")
-
-				// Trim leading and trailing whitespace from names
-				for i := range surveyorNames {
-					surveyorNames[i] = strings.TrimSpace(surveyorNames[i])
+				// Add the length to each explorer's total length
+				for _, explorerName := range explorerNames {
+					explorerLengths[explorerName] += lgValue
 				}
 
-				// Find the associated length of exploration (//SRVD/LG)
-				lengthElement := explorer.FindElement("../LG")
-				if lengthElement != nil {
-					lgText := lengthElement.Text()
-
-					// Convert the length to a float
-					lgValue, err := strconv.ParseFloat(lgText, 64)
-					if err != nil {
-						fmt.Printf("Failed to convert //SRVD/LG value to float in file %s: %v\n", filePath, err)
-						continue
-					}
-
-					// Add the length to each surveyor's total length
-					for _, surveyorName := range surveyorNames {
-						surveyorLengths[surveyorName] += lgValue
-					}
+				// Add the length to each surveyor's total length
+				for _, surveyorName := range surveyorNames {
+					surveyorLengths[surveyorName] += lgValue
 				}
 			}
 		}
@@ -125,7 +89,7 @@ func main() {
 	// Print the explorers and their total lengths of exploration
 	fmt.Println("Explorers:")
 	for _, ex := range sortedExplorers {
-		fmt.Printf("%-28s Length: %f\n", ex.Name, ex.Length)
+		fmt.Printf("%-20s Length: %f\n", ex.Name, ex.Length)
 	}
 
 	fmt.Println()
@@ -142,4 +106,26 @@ func main() {
 	for _, surveyor := range sortedSurveyors {
 		fmt.Printf("%-28s Length: %f\n", surveyor.Name, surveyor.Length)
 	}
+}
+
+// extractNames extracts the names from the content between startTag and endTag.
+func extractNames(content, startTag, endTag string) []string {
+	var names []string
+
+	// Find the start and end positions of the tags
+	startIndex := strings.Index(content, startTag)
+	endIndex := strings.Index(content, endTag)
+
+	// Extract the substring between the tags
+	if startIndex != -1 && endIndex != -1 {
+		substring := content[startIndex+len(startTag) : endIndex]
+
+		// Split the substring by commas and trim whitespace
+		nameList := strings.Split(substring, ",")
+		for _, name := range nameList {
+			names = append(names, strings.TrimSpace(name))
+		}
+	}
+
+	return names
 }
