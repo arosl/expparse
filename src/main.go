@@ -3,10 +3,23 @@ package main
 import (
 	"fmt"
 	"regexp"
+	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/beevik/etree"
 )
+
+type Explorer struct {
+	Name   string
+	Length float64
+}
+
+type ByLength []Explorer
+
+func (a ByLength) Len() int           { return len(a) }
+func (a ByLength) Less(i, j int) bool { return a[i].Length > a[j].Length }
+func (a ByLength) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
 func main() {
 	// Create a new document
@@ -18,43 +31,105 @@ func main() {
 		return
 	}
 
-	// Pattern to match within <Explorer> tags
-	pattern := "(?s)<Explorer>(.*?)" + regexp.QuoteMeta("Fred") + "(.*?)</Explorer>"
-	regex := regexp.MustCompile(pattern) // Compile the regular expression once
-
-	// Get all the //SRVD/EX elements
+	// Find all the //SRVD/EX elements
 	explorers := doc.FindElements("//SRVD/EX")
 
-	// Variable to store the sum of //SRVD/LG elements
-	sum := 0.0
+	// Maps to store the total length of exploration for each explorer and surveyor
+	explorerLengths := make(map[string]float64)
+	surveyorLengths := make(map[string]float64)
+
+	// Regular expression patterns to match the explorer and surveyor names within EX element
+	explorerPattern := "<Explorer>(.*?)</Explorer>"
+	surveyorPattern := "<Surveyor>(.*?)</Surveyor>"
 
 	for _, explorer := range explorers {
-		// Get the text content of <Explorer> tag
-		explorerText := explorer.Text()
-		fmt.Printf("%v\n", explorerText)
+		// Get the text content of the <EX> element
+		exContent := explorer.Text()
 
-		// Perform the match search on the text content
-		matched := regex.MatchString(explorerText)
+		// Extract explorer names using regular expression
+		explorerMatches := regexp.MustCompile(explorerPattern).FindStringSubmatch(exContent)
+		if len(explorerMatches) >= 2 {
+			explorerNames := strings.Split(explorerMatches[1], ",")
 
-		// Check if the text matches the desired pattern
-		if matched {
-			// Find the associated <LG> element
-			lgElements := explorer.Parent().FindElements("LG")
-			for _, lgElement := range lgElements {
-				// Get the text content of <LG> element
-				lgText := lgElement.Text()
+			// Trim leading and trailing whitespace from names
+			for i := range explorerNames {
+				explorerNames[i] = strings.TrimSpace(explorerNames[i])
+			}
 
-				// Convert the text to a float and add it to the sum
+			// Find the associated length of exploration (//SRVD/LG)
+			lengthElement := explorer.FindElement("../LG")
+			if lengthElement != nil {
+				lgText := lengthElement.Text()
+
+				// Convert the length to a float
 				lgValue, err := strconv.ParseFloat(lgText, 64)
 				if err != nil {
 					fmt.Printf("Failed to convert //SRVD/LG value to float: %v\n", err)
 					continue
 				}
 
-				sum += lgValue
+				// Add the length to each explorer's total length
+				for _, explorerName := range explorerNames {
+					explorerLengths[explorerName] += lgValue
+				}
+			}
+		}
+
+		// Extract surveyor names using regular expression
+		surveyorMatches := regexp.MustCompile(surveyorPattern).FindStringSubmatch(exContent)
+		if len(surveyorMatches) >= 2 {
+			surveyorNames := strings.Split(surveyorMatches[1], ",")
+
+			// Trim leading and trailing whitespace from names
+			for i := range surveyorNames {
+				surveyorNames[i] = strings.TrimSpace(surveyorNames[i])
+			}
+
+			// Find the associated length of exploration (//SRVD/LG)
+			lengthElement := explorer.FindElement("../LG")
+			if lengthElement != nil {
+				lgText := lengthElement.Text()
+
+				// Convert the length to a float
+				lgValue, err := strconv.ParseFloat(lgText, 64)
+				if err != nil {
+					fmt.Printf("Failed to convert //SRVD/LG value to float: %v\n", err)
+					continue
+				}
+
+				// Add the length to each surveyor's total length
+				for _, surveyorName := range surveyorNames {
+					surveyorLengths[surveyorName] += lgValue
+				}
 			}
 		}
 	}
 
-	fmt.Printf("Sum of //SRVD/LG elements for matched //SRVD/EX: %f\n", sum)
+	// Sort explorers by their total lengths of exploration in descending order
+	var sortedExplorers []Explorer
+	for explorer, length := range explorerLengths {
+		sortedExplorers = append(sortedExplorers, Explorer{Name: explorer, Length: length})
+	}
+	sort.Sort(ByLength(sortedExplorers))
+
+	// Print the explorers and their total lengths of exploration
+	fmt.Println("Explorers:")
+	for _, ex := range sortedExplorers {
+		fmt.Printf("Explorer: %s, Length: %f\n", ex.Name, ex.Length)
+	}
+
+	fmt.Println()
+
+	// Sort surveyors by their total lengths of exploration in descending order
+	var sortedSurveyors []Explorer
+	for surveyor, length := range surveyorLengths {
+		sortedSurveyors = append(sortedSurveyors, Explorer{Name: surveyor, Length: length})
+	}
+	sort.Sort(ByLength(sortedSurveyors))
+
+	// Print the surveyors and their total lengths of exploration
+	fmt.Println("Surveyors:")
+	for _, surveyor := range sortedSurveyors {
+		fmt.Printf("Surveyor: %s, Length: %f\n", surveyor.Name, surveyor.Length)
+	}
 }
